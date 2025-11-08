@@ -5,6 +5,7 @@ import logging
 import tempfile
 
 from yt_dlp import YoutubeDL
+os.system("python3 -m pip install -U yt-dlp > /dev/null 2>&1")
 from telegram import InputFile, Update
 from telegram.ext import (
     ApplicationBuilder,
