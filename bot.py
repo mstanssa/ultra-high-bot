@@ -99,10 +99,12 @@ def download_and_send(url: str, chat_id: int, context: ContextTypes.DEFAULT_TYPE
             if size_mb <= MAX_TELEGRAM_MB:
                 with open(video_path, "rb") as f:
                     bot.send_video(
-                        chat_id=chat_id,
-                        video=InputFile(f, filename=os.path.basename(video_path)),
-                        supports_streaming=True,
-                    )
+    chat_id=chat_id,
+    video=InputFile(f, filename=os.path.basename(video_path)),
+    supports_streaming=True,
+    caption="🎬 تم التحميل، احفظه من هنا 👇",
+)
+
                 return True, "تم الإرسال"
 
             return False, f"الفيديو حجمه ({size_mb:.1f}MB) أكبر من حد الإرسال عبر البوت."
