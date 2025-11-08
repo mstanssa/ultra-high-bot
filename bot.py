@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+os.system("python3 -m pip install -U yt-dlp > /dev/null 2>&1")
 import asyncio
 import logging
 import tempfile
@@ -30,7 +31,19 @@ YTDL_OPTS = {
     "quiet": True,
     "no_warnings": True,
     "merge_output_format": "mp4",
+    "outtmpl": "%(title)s.%(ext)s",
+    "geo_bypass": True,
+    "age_limit": 0,
+    "ignoreerrors": True,
+    "extractor_retries": 5,
+    "retries": 10,
+    "http_headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+    },
 }
+
 
 MAX_TELEGRAM_MB = 48
 
