@@ -109,7 +109,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
     print("🚀 Ultra High Bot يعمل الآن...")
-    app.run_polling()
+    app.run_polling(stop_signals=None)
 
 
 if __name__ == "__main__":
