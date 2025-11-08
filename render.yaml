@@ -3,8 +3,8 @@ services:
     name: ultra-high-bot
     env: python
     plan: starter
-    buildCommand: apt-get update && apt-get install -y ffmpeg && pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: bash start.sh
     envVars:
       - key: TG_BOT_TOKEN
-        sync: false
+        value: "توكن_البوت_من_BotFather"
