@@ -1,22 +1,13 @@
 #!/usr/bin/env python3
 import os
-os.system("python3 -m pip install -U yt-dlp > /dev/null 2>&1")
 import asyncio
 import logging
 import tempfile
-
 from yt_dlp import YoutubeDL
-os.system("python3 -m pip install -U yt-dlp > /dev/null 2>&1")
 from telegram import InputFile, Update
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
-)
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# نقرأ التوكن من متغير البيئة
+# قراءة التوكن من متغير البيئة
 BOT_TOKEN = os.environ.get("TG_BOT_TOKEN")
 
 logging.basicConfig(
@@ -33,17 +24,8 @@ YTDL_OPTS = {
     "merge_output_format": "mp4",
     "outtmpl": "%(title)s.%(ext)s",
     "geo_bypass": True,
-    "age_limit": 0,
     "ignoreerrors": True,
-    "extractor_retries": 5,
-    "retries": 10,
-    "http_headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-    },
 }
-
 
 MAX_TELEGRAM_MB = 48
 
@@ -66,52 +48,55 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     waiting = await update.message.reply_text("⏳ جاري التحميل...")
 
-    loop = asyncio.get_running_loop()
-    ok, msg = await loop.run_in_executor(
-        None, download_and_send, url, update.effective_chat.id, context
-    )
+    try:
+        video_path, size_mb = await asyncio.get_event_loop().run_in_executor(None, download_video, url)
 
-    if ok:
-        await waiting.edit_text("✅ تم التحميل والإرسال.")
-    else:
-        await waiting.edit_text(f"⚠️ {msg}")
+        if not video_path:
+            await waiting.edit_text("⚠️ لم أتمكن من تحميل الفيديو.")
+            return
+
+        if size_mb > MAX_TELEGRAM_MB:
+            await waiting.edit_text(f"⚠️ حجم الفيديو ({size_mb:.1f}MB) أكبر من حد التحميل عبر تيليجرام.")
+            return
+
+        await waiting.edit_text("📤 جاري إرسال الفيديو...")
+
+        async with await context.bot.send_video(
+            chat_id=update.effective_chat.id,
+            video=open(video_path, "rb"),
+            caption="🎬 تم التحميل، احفظه من هنا 👇",
+            supports_streaming=True,
+        ):
+            pass
+
+        await waiting.edit_text("✅ تم التحميل والإرسال ❤️")
+    except Exception as e:
+        logger.exception("خطأ أثناء التحميل")
+        await waiting.edit_text("⚠️ صار خطأ أثناء التحميل أو الموقع مانع التحميل.")
+    finally:
+        if "video_path" in locals() and os.path.exists(video_path):
+            os.remove(video_path)
 
 
-def download_and_send(url: str, chat_id: int, context: ContextTypes.DEFAULT_TYPE):
+def download_video(url: str):
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
             opts = YTDL_OPTS.copy()
             opts["outtmpl"] = os.path.join(tmpdir, "%(id)s.%(ext)s")
-
             ydl = YoutubeDL(opts)
             info = ydl.extract_info(url, download=True)
-
             files = [os.path.join(tmpdir, f) for f in os.listdir(tmpdir)]
             if not files:
-                return False, "ما قدرت أطلع ملف من الرابط."
-
+                return None, 0
             files.sort(key=lambda p: os.path.getsize(p), reverse=True)
             video_path = files[0]
             size_mb = os.path.getsize(video_path) / (1024 * 1024)
-
-            bot = context.bot
-
-            if size_mb <= MAX_TELEGRAM_MB:
-                with open(video_path, "rb") as f:
-                    bot.send_video(
-    chat_id=chat_id,
-    video=InputFile(f, filename=os.path.basename(video_path)),
-    supports_streaming=True,
-    caption="🎬 تم التحميل، احفظه من هنا 👇",
-)
-
-                return True, "تم الإرسال"
-
-            return False, f"الفيديو حجمه ({size_mb:.1f}MB) أكبر من حد الإرسال عبر البوت."
-
+            temp_path = os.path.join("/tmp", os.path.basename(video_path))
+            os.rename(video_path, temp_path)
+            return temp_path, size_mb
     except Exception as e:
-        logger.exception("خطأ أثناء التحميل")
-        return False, "صار خطأ أثناء التحميل أو الموقع مانع التحميل."
+        logger.error(f"Error downloading video: {e}")
+        return None, 0
 
 
 def main():
